@@ -26,6 +26,7 @@ videojs.Youtube = videojs.MediaTechController.extend({
     }
 
     this.userQuality = videojs.Youtube.convertQualityName(player.options()['quality']);
+    this.startTime = null;
 
     // Save those for internal usage
     this.player_ = player;
@@ -141,7 +142,8 @@ videojs.Youtube = videojs.MediaTechController.extend({
       autoplay: (this.playOnReady)?1:0,
       loop: (this.player_.options()['loop'])?1:0,
       list: this.playlistId,
-      vq: this.userQuality
+      vq: this.userQuality,
+      t: this.startTime
     };
 
     // Delete unset properties
@@ -185,12 +187,12 @@ videojs.Youtube = videojs.MediaTechController.extend({
           // Set the black background if their is no video initially
           this.iframeblocker.style.backgroundColor = 'black';
         } else {
-		  // Don't use player.poster(), it will fail here because the tech is still null in constructor
-		  setTimeout(function() {
-			var posterEl = self.player_el_.getElementsByClassName('vjs-poster')[0];
-		    posterEl.style.backgroundImage = 'url(https://img.youtube.com/vi/' + self.videoId + '/0.jpg)';
-		    posterEl.style.display = '';
-	      }, 100);
+      // Don't use player.poster(), it will fail here because the tech is still null in constructor
+      setTimeout(function() {
+      var posterEl = self.player_el_.getElementsByClassName('vjs-poster')[0];
+        posterEl.style.backgroundImage = 'url(https://img.youtube.com/vi/' + self.videoId + '/0.jpg)';
+        posterEl.style.display = '';
+        }, 100);
         }
       }
     }
@@ -262,6 +264,19 @@ videojs.Youtube.prototype.parseSrc = function(src){
     if (match != null && match.length > 1) {
       this.userQuality = match[1];
     }
+
+    var regStartTime = /[?&]start=(\d+)/;
+    match = src.match(regStartTime);
+
+    if (match != null && match.length > 1) {
+      this.startTime = match[1];
+    } else {
+      this.startTime = 0;
+    }
+
+    var self = this;
+    console.log('parsed with startTime ' + self.startTime );
+
   }
 };
 
@@ -277,12 +292,14 @@ videojs.Youtube.prototype.src = function(src){
       if (this.player_.options()['autoplay']) {
         this.ytplayer.loadVideoById({
           videoId: this.videoId,
-          suggestedQuality: this.userQuality
+          suggestedQuality: this.userQuality,
+          startSeconds: (this.startTime) ? this.startTime : 0
         });
       } else {
         this.ytplayer.cueVideoById({
           videoId: this.videoId,
-          suggestedQuality: this.userQuality
+          suggestedQuality: this.userQuality,
+          startSeconds: (this.startTime) ? this.startTime : 0
         });
       }
 
@@ -318,7 +335,10 @@ videojs.Youtube.prototype.play = function(){
 videojs.Youtube.prototype.pause = function(){ this.ytplayer.pauseVideo(); };
 videojs.Youtube.prototype.paused = function(){ return (this.ytplayer)?(this.lastState !== YT.PlayerState.PLAYING && this.lastState !== YT.PlayerState.BUFFERING):true; };
 videojs.Youtube.prototype.currentTime = function(){ return (this.ytplayer && this.ytplayer.getCurrentTime)?this.ytplayer.getCurrentTime():0; };
-videojs.Youtube.prototype.setCurrentTime = function(seconds){ this.ytplayer.seekTo(seconds, true); this.player_.trigger('timeupdate'); };
+videojs.Youtube.prototype.setCurrentTime = function(seconds){
+  this.ytplayer.seekTo(seconds, true);
+  this.player_.trigger('timeupdate');
+};
 videojs.Youtube.prototype.duration = function(){ return (this.ytplayer && this.ytplayer.getDuration)?this.ytplayer.getDuration():0; };
 videojs.Youtube.prototype.currentSrc = function(){ return this.srcVal; };
 
